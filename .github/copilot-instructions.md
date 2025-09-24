@@ -28,13 +28,23 @@ npm run lint     # ESLint check
 ## Component Architecture
 - **FirebaseConfig**: Handles Firebase configuration input and connection
 - **DataTable**: Dynamic table with sorting, displays Firestore document data
-- **App**: Main container managing connection state and data flow
+- **QueryConsole**: Advanced query builder for Firestore with filters, ordering, and limits
+- **App**: Main container managing connection state, data flow, and query execution
 
 ## Firebase Integration
 - **Initialization**: Firebase app initialized in `services/firebase.js` with user-provided config
 - **Firestore**: Uses modular Firebase v9+ SDK for Firestore operations
 - **Collections**: Dynamically fetches and displays any Firestore collection
+- **Advanced Queries**: Supports where clauses, orderBy, and limit operations via `executeQuery`
 - **Error Handling**: Comprehensive error handling for connection and data fetching
+
+## Query Console Features
+- **Where Clauses**: Support for all Firestore operators (==, !=, <, <=, >, >=, array-contains, in, not-in)
+- **Data Types**: Handles string, number, boolean, and array value types
+- **Order By**: Single field ordering with ascending/descending options
+- **Limit**: Results pagination with configurable limits
+- **Query Status**: Real-time feedback on query execution and results
+- **Reset Functionality**: Toggle between filtered and original data sets
 
 ## Styling Approach  
 - **Dark Mode**: Gray-900 background with gradient headers and orange accents
@@ -55,3 +65,6 @@ npm run lint     # ESLint check
 - **Status Messages**: Success/error feedback with color-coded styling
 - **Sortable Tables**: Click column headers to sort table data
 - **Responsive Layout**: Adapts to different screen sizes with Tailwind breakpoints
+- **Collapsible Sections**: Query console expands/collapses to save screen space
+- **Dynamic Forms**: Filter rows can be added/removed with real-time validation
+- **Query State Management**: Clear distinction between original and filtered data sets

@@ -1,7 +1,14 @@
 import { useState } from 'react';
 
 const FirebaseConfig = ({ onConnect, isConnected, connectionStatus }) => {
-  const [config, setConfig] = useState('');
+  const [config, setConfig] = useState(`{
+  "apiKey": "AIzaSyBP38Vs4QigmYRKCGmdIaq-NgJ_aVCPZp4",
+  "authDomain": "wcc-website-1ea11.firebaseapp.com",
+  "projectId": "wcc-website-1ea11",
+  "storageBucket": "wcc-website-1ea11.firebasestorage.app",
+  "messagingSenderId": "797854070317",
+  "appId": "1:797854070317:web:a56738266726ccc8baaaa4"
+}`);
   const [collectionName, setCollectionName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 

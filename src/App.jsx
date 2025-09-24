@@ -1,15 +1,19 @@
 import { useState } from 'react';
-import { initializeFirebase, getCollectionData } from './services/firebase';
+import { initializeFirebase, getCollectionData, executeQuery } from './services/firebase';
 import FirebaseConfig from './components/FirebaseConfig';
 import DataTable from './components/DataTable';
+import QueryConsole from './components/QueryConsole';
 import './App.css';
 
 function App() {
   const [isConnected, setIsConnected] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState(null);
   const [data, setData] = useState([]);
+  const [originalData, setOriginalData] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isQuerying, setIsQuerying] = useState(false);
   const [currentCollection, setCurrentCollection] = useState('');
+  const [queryStatus, setQueryStatus] = useState(null);
 
   const handleConnect = async (config, collectionName) => {
     setIsLoading(true);
@@ -28,6 +32,7 @@ function App() {
       const collectionData = await getCollectionData(collectionName);
       
       setData(collectionData);
+      setOriginalData(collectionData);
       setCurrentCollection(collectionName);
       setIsConnected(true);
       setConnectionStatus({
@@ -44,6 +49,53 @@ function App() {
       setIsLoading(false);
     }
   };
+
+  const handleExecuteQuery = async (queryParams) => {
+    setIsQuerying(true);
+    setQueryStatus(null);
+    
+    try {
+      const queryResults = await executeQuery(queryParams);
+      setData(queryResults);
+      
+      const hasFilters = queryParams.filters && queryParams.filters.length > 0;
+      const hasOrderBy = queryParams.orderBy && queryParams.orderBy.field;
+      const hasLimit = queryParams.limit && queryParams.limit > 0;
+      
+      let statusMessage = `Query executed successfully. Found ${queryResults.length} documents`;
+      
+      if (hasFilters || hasOrderBy || hasLimit) {
+        const conditions = [];
+        if (hasFilters) conditions.push(`${queryParams.filters.length} filter(s)`);
+        if (hasOrderBy) conditions.push(`ordered by ${queryParams.orderBy.field}`);
+        if (hasLimit) conditions.push(`limited to ${queryParams.limit}`);
+        statusMessage += ` (${conditions.join(', ')})`;
+      }
+      
+      setQueryStatus({
+        success: true,
+        message: statusMessage
+      });
+      
+    } catch (error) {
+      setQueryStatus({
+        success: false,
+        message: `Query failed: ${error.message}`
+      });
+    } finally {
+      setIsQuerying(false);
+    }
+  };
+
+  const resetToOriginalData = () => {
+    setData(originalData);
+    setQueryStatus(null);
+  };
+
+  // Get available fields from the data
+  const availableFields = originalData.length > 0 
+    ? [...new Set(originalData.flatMap(item => Object.keys(item)))]
+    : [];
 
   return (
     <div className="min-h-screen bg-gray-900">
@@ -82,21 +134,56 @@ function App() {
             connectionStatus={connectionStatus}
           />
 
-          {/* Data Display Section */}
+          {/* Query Console and Data Display Section */}
           {(isConnected || isLoading) && (
-            <div className="space-y-4">
+            <div className="space-y-6">
+              {/* Query Console */}
+              {isConnected && originalData.length > 0 && (
+                <QueryConsole
+                  onExecuteQuery={handleExecuteQuery}
+                  availableFields={availableFields}
+                  isLoading={isQuerying}
+                />
+              )}
+
+              {/* Query Status */}
+              {queryStatus && (
+                <div className={`p-3 rounded-md flex items-center justify-between ${queryStatus.success 
+                  ? 'bg-green-900/50 border border-green-700 text-green-300' 
+                  : 'bg-red-900/50 border border-red-700 text-red-300'
+                }`}>
+                  <span>{queryStatus.message}</span>
+                  {queryStatus.success && data.length !== originalData.length && (
+                    <button
+                      onClick={resetToOriginalData}
+                      className="ml-4 text-xs bg-green-800/50 hover:bg-green-700/50 px-3 py-1 rounded transition-colors"
+                    >
+                      Show All ({originalData.length})
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Data Table Header and Count */}
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-white">
                   Collection Data: <span className="text-orange-400">{currentCollection}</span>
                 </h2>
-                {data.length > 0 && (
-                  <span className="text-sm text-gray-400">
-                    {data.length} documents
-                  </span>
-                )}
+                <div className="flex items-center space-x-4">
+                  {data.length !== originalData.length && (
+                    <span className="text-sm text-gray-400">
+                      Showing {data.length} of {originalData.length} documents
+                    </span>
+                  )}
+                  {data.length > 0 && data.length === originalData.length && (
+                    <span className="text-sm text-gray-400">
+                      {data.length} documents
+                    </span>
+                  )}
+                </div>
               </div>
               
-              <DataTable data={data} isLoading={isLoading} />
+              <DataTable data={data} isLoading={isLoading || isQuerying} />
             </div>
           )}
         </div>
