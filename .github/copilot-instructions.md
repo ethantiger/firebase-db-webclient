@@ -27,24 +27,37 @@ npm run lint     # ESLint check
 
 ## Component Architecture
 - **FirebaseConfig**: Handles Firebase configuration input and connection
+- **AdminAuth**: Firebase Authentication for admin users with secure access control
 - **DataTable**: Dynamic table with sorting, displays Firestore document data
 - **QueryConsole**: Advanced query builder for Firestore with filters, ordering, and limits
-- **App**: Main container managing connection state, data flow, and query execution
+- **MigrationConsole**: Batch operations for editing, duplicating, and deleting documents
+- **App**: Main container managing connection state, authentication, data flow, and all operations
 
 ## Firebase Integration
 - **Initialization**: Firebase app initialized in `services/firebase.js` with user-provided config
+- **Authentication**: Firebase Auth for admin user verification and session management
 - **Firestore**: Uses modular Firebase v9+ SDK for Firestore operations
 - **Collections**: Dynamically fetches and displays any Firestore collection
 - **Advanced Queries**: Supports where clauses, orderBy, and limit operations via `executeQuery`
-- **Error Handling**: Comprehensive error handling for connection and data fetching
+- **Batch Operations**: Supports batch updates, field deletion, document duplication, and deletion
+- **Error Handling**: Comprehensive error handling for all Firebase operations
 
-## Query Console Features
-- **Where Clauses**: Support for all Firestore operators (==, !=, <, <=, >, >=, array-contains, in, not-in)
-- **Data Types**: Handles string, number, boolean, and array value types
-- **Order By**: Single field ordering with ascending/descending options
-- **Limit**: Results pagination with configurable limits
-- **Query Status**: Real-time feedback on query execution and results
-- **Reset Functionality**: Toggle between filtered and original data sets
+## Authentication System
+- **Admin-Only Access**: Query and migration consoles require Firebase Authentication
+- **Email/Password Login**: Secure admin credentials stored in Firebase Auth
+- **Session Management**: Persistent authentication state with automatic sign-out
+- **Security Enforcement**: Database operations restricted to authenticated admin users
+- **User Feedback**: Real-time auth status with detailed error messages
+
+## Migration Console Features
+- **Document Selection**: Multi-select interface for choosing documents to operate on
+- **Batch Updates**: Update multiple documents with new field values simultaneously
+- **Field Deletion**: Remove specific fields from multiple documents with confirmation warnings
+- **Document Duplication**: Clone existing documents with all their data
+- **Document Deletion**: Remove multiple documents with confirmation prompts
+- **Field Management**: Dynamic field editor with type-aware value parsing
+- **Operation Status**: Real-time feedback on migration operations
+- **Auto-refresh**: Automatically refreshes data after successful operations
 
 ## Styling Approach  
 - **Dark Mode**: Gray-900 background with gradient headers and orange accents
@@ -65,6 +78,11 @@ npm run lint     # ESLint check
 - **Status Messages**: Success/error feedback with color-coded styling
 - **Sortable Tables**: Click column headers to sort table data
 - **Responsive Layout**: Adapts to different screen sizes with Tailwind breakpoints
-- **Collapsible Sections**: Query console expands/collapses to save screen space
-- **Dynamic Forms**: Filter rows can be added/removed with real-time validation
+- **Collapsible Sections**: Query console and migration console expand/collapse to save screen space
+- **Dynamic Forms**: Filter rows and update fields can be added/removed with real-time validation
 - **Query State Management**: Clear distinction between original and filtered data sets
+- **Multi-selection Interface**: Checkbox-based document selection with bulk actions
+- **Confirmation Dialogs**: Safety prompts for destructive operations like deletion
+- **Color-coded Operations**: Different gradient colors for different operation types (orange=query, red=migration, blue=duplicate, blue=auth)
+- **Authentication Gates**: Visual barriers requiring admin login for sensitive operations
+- **Warning Messages**: Red-themed alerts for destructive field deletion operations

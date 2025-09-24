@@ -1,8 +1,18 @@
 import { useState } from 'react';
-import { initializeFirebase, getCollectionData, executeQuery } from './services/firebase';
+import { 
+  initializeFirebase, 
+  getCollectionData, 
+  executeQuery, 
+  batchUpdateDocuments, 
+  duplicateDocuments, 
+  deleteDocuments,
+  isFirebaseInitialized
+} from './services/firebase';
 import FirebaseConfig from './components/FirebaseConfig';
 import DataTable from './components/DataTable';
 import QueryConsole from './components/QueryConsole';
+import MigrationConsole from './components/MigrationConsole';
+import AdminAuth from './components/AdminAuth';
 import './App.css';
 
 function App() {
@@ -14,6 +24,8 @@ function App() {
   const [isQuerying, setIsQuerying] = useState(false);
   const [currentCollection, setCurrentCollection] = useState('');
   const [queryStatus, setQueryStatus] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
 
   const handleConnect = async (config, collectionName) => {
     setIsLoading(true);
@@ -92,6 +104,40 @@ function App() {
     setQueryStatus(null);
   };
 
+  // Migration operation handlers
+  const handleBatchUpdate = async (documentIds, updates, fieldsToDelete = []) => {
+    await batchUpdateDocuments(documentIds, updates, fieldsToDelete);
+  };
+
+  const handleAuthChange = (authenticated, user) => {
+    setIsAuthenticated(authenticated);
+    setCurrentUser(user);
+  };
+
+  const handleDuplicate = async (documentIds) => {
+    await duplicateDocuments(documentIds, originalData);
+  };
+
+  const handleDelete = async (documentIds) => {
+    await deleteDocuments(documentIds);
+  };
+
+  const refreshData = async () => {
+    if (!currentCollection) return;
+    
+    try {
+      setIsLoading(true);
+      const refreshedData = await getCollectionData(currentCollection);
+      setData(refreshedData);
+      setOriginalData(refreshedData);
+      setQueryStatus(null);
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Get available fields from the data
   const availableFields = originalData.length > 0 
     ? [...new Set(originalData.flatMap(item => Object.keys(item)))]
@@ -134,16 +180,55 @@ function App() {
             connectionStatus={connectionStatus}
           />
 
+          {/* Admin Authentication Section */}
+          {isConnected && (
+            <AdminAuth
+              isFirebaseInitialized={isConnected}
+              onAuthChange={handleAuthChange}
+            />
+          )}
+
           {/* Query Console and Data Display Section */}
           {(isConnected || isLoading) && (
             <div className="space-y-6">
               {/* Query Console */}
-              {isConnected && originalData.length > 0 && (
+              {isConnected && isAuthenticated && originalData.length > 0 && (
                 <QueryConsole
                   onExecuteQuery={handleExecuteQuery}
                   availableFields={availableFields}
                   isLoading={isQuerying}
                 />
+              )}
+
+              {/* Migration Console */}
+              {isConnected && isAuthenticated && originalData.length > 0 && (
+                <MigrationConsole
+                  data={data}
+                  onBatchUpdate={handleBatchUpdate}
+                  onDuplicateDocuments={handleDuplicate}
+                  onDeleteDocuments={handleDelete}
+                  onRefreshData={refreshData}
+                  availableFields={availableFields}
+                  isLoading={isLoading}
+                />
+              )}
+
+              {/* Authentication Required Message */}
+              {isConnected && !isAuthenticated && originalData.length > 0 && (
+                <div className="p-6 bg-blue-900/20 border border-blue-700/30 rounded-lg text-center">
+                  <div className="flex items-center justify-center space-x-3 mb-4">
+                    <svg className="w-8 h-8 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    <h3 className="text-lg font-medium text-blue-300">Authentication Required</h3>
+                  </div>
+                  <p className="text-blue-400 mb-4">
+                    Sign in with admin credentials above to access advanced query and migration tools.
+                  </p>
+                  <p className="text-sm text-blue-500">
+                    Admin authentication is required to perform database operations for security purposes.
+                  </p>
+                </div>
               )}
 
               {/* Query Status */}
