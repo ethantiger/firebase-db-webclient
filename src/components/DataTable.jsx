@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { isFirestoreTimestamp } from '../services/firebase';
 
 const DataTable = ({ data, isLoading }) => {
   const [sortKey, setSortKey] = useState(null);
@@ -51,8 +52,50 @@ const DataTable = ({ data, isLoading }) => {
 
   const renderValue = (value) => {
     if (value === null || value === undefined) return '';
-    if (typeof value === 'object') return JSON.stringify(value, null, 2);
+    
+    // Handle Firestore Timestamps
+    if (isFirestoreTimestamp(value)) {
+      const date = value.toDate();
+      return date.toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+    }
+    
+    // Handle Arrays
+    if (Array.isArray(value)) {
+      if (value.length === 0) return '[]';
+      if (value.length <= 3) {
+        return `[${value.map(v => typeof v === 'string' ? `"${v}"` : String(v)).join(', ')}]`;
+      }
+      return `[${value.slice(0, 2).map(v => typeof v === 'string' ? `"${v}"` : String(v)).join(', ')}, ...+${value.length - 2}]`;
+    }
+    
+    // Handle Objects
+    if (typeof value === 'object') {
+      const keys = Object.keys(value);
+      if (keys.length === 0) return '{}';
+      if (keys.length <= 2) {
+        return `{${keys.map(k => `${k}: ${typeof value[k] === 'string' ? `"${value[k]}"` : String(value[k])}`).join(', ')}}`;
+      }
+      return `{${keys.slice(0, 2).map(k => `${k}: ${typeof value[k] === 'string' ? `"${value[k]}"` : String(value[k])}`).join(', ')}, ...+${keys.length - 2}}`;
+    }
+    
+    // Handle Booleans
     if (typeof value === 'boolean') return value.toString();
+    
+    // Handle everything else as string
+    return String(value);
+  };
+
+  const renderFullValue = (value) => {
+    if (value === null || value === undefined) return 'null';
+    if (isFirestoreTimestamp(value)) return value.toDate().toLocaleString();
+    if (Array.isArray(value) || typeof value === 'object') return JSON.stringify(value, null, 2);
     return String(value);
   };
 
@@ -90,7 +133,7 @@ const DataTable = ({ data, isLoading }) => {
                   key={key}
                   className="px-6 py-4 whitespace-nowrap text-sm text-gray-300"
                 >
-                  <div className="max-w-xs truncate" title={renderValue(row[key])}>
+                  <div className="max-w-xs truncate" title={renderFullValue(row[key])}>
                     {renderValue(row[key])}
                   </div>
                 </td>

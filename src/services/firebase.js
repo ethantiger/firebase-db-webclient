@@ -15,7 +15,8 @@ import {
   deleteDoc,
   writeBatch,
   runTransaction,
-  deleteField
+  deleteField,
+  Timestamp
 } from 'firebase/firestore';
 import { 
   getAuth, 
@@ -273,4 +274,43 @@ export const getCurrentUser = () => {
 export const onAuthChanged = (callback) => {
   if (!auth) return () => {};
   return onAuthStateChanged(auth, callback);
+};
+
+// Utility functions for data formatting
+export const isFirestoreTimestamp = (value) => {
+  return value && typeof value === 'object' && value.toDate && typeof value.toDate === 'function';
+};
+
+export const formatFirestoreValue = (value) => {
+  if (isFirestoreTimestamp(value)) {
+    return value.toDate().toLocaleString();
+  }
+  if (Array.isArray(value)) {
+    return value;
+  }
+  if (value && typeof value === 'object') {
+    return value;
+  }
+  return value;
+};
+
+export const convertToFirestoreValue = (value, type) => {
+  switch (type) {
+    case 'timestamp':
+      return value ? Timestamp.fromDate(new Date(value)) : null;
+    case 'number':
+      return parseFloat(value) || 0;
+    case 'boolean':
+      return value === 'true' || value === true;
+    case 'array':
+      return typeof value === 'string' 
+        ? value.split(',').map(v => v.trim()).filter(v => v)
+        : Array.isArray(value) ? value : [value];
+    case 'object':
+      return typeof value === 'string' ? JSON.parse(value) : value;
+    case 'null':
+      return null;
+    default:
+      return value;
+  }
 };

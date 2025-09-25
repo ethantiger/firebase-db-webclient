@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { convertToFirestoreValue, formatFirestoreValue } from '../services/firebase';
 
 const MigrationConsole = ({ 
   data, 
@@ -15,6 +16,38 @@ const MigrationConsole = ({
   const [updateFields, setUpdateFields] = useState([]);
   const [deleteFields, setDeleteFields] = useState([]);
   const [operationStatus, setOperationStatus] = useState(null);
+
+  // Helper function to find and format a date field from document
+  const getDocumentDateInfo = (doc) => {
+    // Common date field names to look for
+    const dateFields = ['createdAt', 'updatedAt', 'timestamp', 'date', 'created', 'modified'];
+    
+    for (const field of dateFields) {
+      if (doc[field]) {
+        const formatted = formatFirestoreValue(doc[field]);
+        if (formatted !== JSON.stringify(doc[field])) { // If it was formatted as a date
+          return `${field}: ${formatted}`;
+        }
+      }
+    }
+    
+    // If no common date fields found, look for any Timestamp objects
+    for (const [key, value] of Object.entries(doc)) {
+      if (key !== 'id' && value && typeof value === 'object' && value.toDate) {
+        return `${key}: ${formatFirestoreValue(value)}`;
+      }
+    }
+    
+    // Fall back to first non-id field
+    const firstField = Object.entries(doc).find(([key, _]) => key !== 'id');
+    if (firstField) {
+      const [key, value] = firstField;
+      const formatted = formatFirestoreValue(value);
+      return `${key}: ${formatted.length > 30 ? formatted.substring(0, 30) + '...' : formatted}`;
+    }
+    
+    return 'No additional data';
+  };
 
   // Select/deselect documents
   const toggleDocumentSelection = (docId) => {
@@ -71,20 +104,7 @@ const MigrationConsole = ({
   };
 
   const parseValue = (value, type) => {
-    if (!value && value !== 0 && value !== false) return null;
-    
-    switch (type) {
-      case 'number':
-        return parseFloat(value) || 0;
-      case 'boolean':
-        return value === 'true' || value === true;
-      case 'array':
-        return value.split(',').map(v => v.trim()).filter(v => v);
-      case 'null':
-        return null;
-      default:
-        return value;
-    }
+    return convertToFirestoreValue(value, type);
   };
 
   // Operation handlers
@@ -260,9 +280,7 @@ const MigrationConsole = ({
                       ID: {doc.id}
                     </p>
                     <p className="text-xs text-gray-400 truncate">
-                      {Object.entries(doc).slice(0, 3).map(([key, value]) => 
-                        key !== 'id' ? `${key}: ${JSON.stringify(value).substring(0, 30)}` : null
-                      ).filter(Boolean).join(', ')}
+                      {getDocumentDateInfo(doc)}
                     </p>
                   </div>
                 </label>
@@ -353,6 +371,8 @@ const MigrationConsole = ({
                           <option value="number">Number</option>
                           <option value="boolean">Boolean</option>
                           <option value="array">Array</option>
+                          <option value="object">Object</option>
+                          <option value="timestamp">Date/Timestamp</option>
                           <option value="null">Null</option>
                         </select>
                       </div>
@@ -376,12 +396,31 @@ const MigrationConsole = ({
                             disabled
                             className="w-full text-xs bg-gray-800 border border-gray-600 rounded px-2 py-1 text-gray-400"
                           />
-                        ) : (
+                        ) : field.type === 'timestamp' ? (
                           <input
-                            type="text"
+                            type="datetime-local"
                             value={field.value}
                             onChange={(e) => updateField(index, 'value', e.target.value)}
-                            placeholder={field.type === 'array' ? 'value1, value2, value3' : 'Enter value'}
+                            className="w-full text-xs bg-gray-800 border border-gray-600 rounded px-2 py-1 text-gray-200 focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+                          />
+                        ) : field.type === 'object' ? (
+                          <textarea
+                            value={field.value}
+                            onChange={(e) => updateField(index, 'value', e.target.value)}
+                            placeholder='{"key": "value", "nested": {"prop": 123}}'
+                            rows="2"
+                            className="w-full text-xs bg-gray-800 border border-gray-600 rounded px-2 py-1 text-gray-200 focus:ring-1 focus:ring-orange-500 focus:border-orange-500 resize-none"
+                          />
+                        ) : (
+                          <input
+                            type={field.type === 'number' ? 'number' : 'text'}
+                            value={field.value}
+                            onChange={(e) => updateField(index, 'value', e.target.value)}
+                            placeholder={
+                              field.type === 'array' ? 'value1, value2, value3' : 
+                              field.type === 'number' ? 'Enter number' :
+                              'Enter value'
+                            }
                             className="w-full text-xs bg-gray-800 border border-gray-600 rounded px-2 py-1 text-gray-200 focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
                           />
                         )}

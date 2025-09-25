@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { convertToFirestoreValue } from '../services/firebase';
 
 const QueryConsole = ({ onExecuteQuery, availableFields = [], isLoading }) => {
   const [filters, setFilters] = useState([]);
@@ -34,18 +35,7 @@ const QueryConsole = ({ onExecuteQuery, availableFields = [], isLoading }) => {
   };
 
   const parseValue = (value, type) => {
-    if (!value && value !== 0 && value !== false) return '';
-    
-    switch (type) {
-      case 'number':
-        return parseFloat(value) || 0;
-      case 'boolean':
-        return value === 'true' || value === true;
-      case 'array':
-        return value.split(',').map(v => v.trim()).filter(v => v);
-      default:
-        return value;
-    }
+    return convertToFirestoreValue(value, type);
   };
 
   const executeQuery = () => {
@@ -172,6 +162,7 @@ const QueryConsole = ({ onExecuteQuery, availableFields = [], isLoading }) => {
                         <option value="number">Number</option>
                         <option value="boolean">Boolean</option>
                         <option value="array">Array</option>
+                        <option value="timestamp">Date/Timestamp</option>
                       </select>
                     </div>
                     
@@ -187,9 +178,16 @@ const QueryConsole = ({ onExecuteQuery, availableFields = [], isLoading }) => {
                           <option value="true">true</option>
                           <option value="false">false</option>
                         </select>
+                      ) : filter.type === 'timestamp' ? (
+                        <input
+                          type="datetime-local"
+                          value={filter.value}
+                          onChange={(e) => updateFilter(index, 'value', e.target.value)}
+                          className="w-full text-xs bg-gray-800 border border-gray-600 rounded px-2 py-1 text-gray-200 focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+                        />
                       ) : (
                         <input
-                          type="text"
+                          type={filter.type === 'number' ? 'number' : 'text'}
                           value={filter.value}
                           onChange={(e) => updateFilter(index, 'value', e.target.value)}
                           placeholder={filter.type === 'array' ? 'value1, value2, value3' : 'Enter value'}
