@@ -282,15 +282,59 @@ export const isFirestoreTimestamp = (value) => {
 };
 
 export const formatFirestoreValue = (value) => {
+  return formatNestedValue(value);
+};
+
+// Helper function to recursively format nested structures for display
+const formatNestedValue = (value) => {
   if (isFirestoreTimestamp(value)) {
     return value.toDate().toLocaleString();
   }
+  
   if (Array.isArray(value)) {
-    return value;
+    if (value.length === 0) return '[]';
+    
+    // Check if it's an array of objects
+    const hasObjects = value.some(item => item && typeof item === 'object' && !Array.isArray(item) && !isFirestoreTimestamp(item));
+    
+    if (hasObjects) {
+      const formatted = value.slice(0, 2).map(item => {
+        if (item && typeof item === 'object' && !Array.isArray(item) && !isFirestoreTimestamp(item)) {
+          const entries = Object.entries(item).slice(0, 2);
+          const objStr = entries.map(([k, v]) => `${k}: ${formatNestedValue(v)}`).join(', ');
+          return `{${objStr}${Object.keys(item).length > 2 ? '...' : ''}}`;
+        }
+        return formatNestedValue(item);
+      });
+      
+      return value.length > 2 
+        ? `[${formatted.join(', ')}... +${value.length - 2} more]`
+        : `[${formatted.join(', ')}]`;
+    }
+    
+    // Regular array formatting
+    const formatted = value.slice(0, 3).map(item => formatNestedValue(item));
+    return value.length > 3 
+      ? `${formatted.join(', ')}... (+${value.length - 3} more)`
+      : formatted.join(', ');
   }
+  
   if (value && typeof value === 'object') {
-    return value;
+    const entries = Object.entries(value);
+    if (entries.length === 0) return '{}';
+    
+    const formatted = entries.slice(0, 2).map(([key, val]) => {
+      const formattedVal = formatNestedValue(val);
+      return `${key}: ${typeof formattedVal === 'string' && formattedVal.length > 20 
+        ? formattedVal.substring(0, 20) + '...' 
+        : formattedVal}`;
+    });
+    
+    return entries.length > 2 
+      ? `{${formatted.join(', ')}... +${entries.length - 2} more}`
+      : `{${formatted.join(', ')}}`;
   }
+  
   return value;
 };
 
@@ -303,14 +347,90 @@ export const convertToFirestoreValue = (value, type) => {
     case 'boolean':
       return value === 'true' || value === true;
     case 'array':
-      return typeof value === 'string' 
-        ? value.split(',').map(v => v.trim()).filter(v => v)
-        : Array.isArray(value) ? value : [value];
+      if (typeof value === 'string') {
+        // Try to parse as JSON first (for arrays of objects)
+        try {
+          const parsed = JSON.parse(value);
+          if (Array.isArray(parsed)) {
+            return processArrayItems(parsed);
+          }
+        } catch {
+          // Fall back to comma-separated values
+          return value.split(',').map(v => v.trim()).filter(v => v);
+        }
+      }
+      return Array.isArray(value) ? processArrayItems(value) : [value];
     case 'object':
-      return typeof value === 'string' ? JSON.parse(value) : value;
+      const parsedObject = typeof value === 'string' ? JSON.parse(value) : value;
+      return processNestedValue(parsedObject);
     case 'null':
       return null;
     default:
       return value;
   }
+};
+
+// Helper function to process array items, handling objects within arrays
+const processArrayItems = (array) => {
+  return array.map(item => {
+    if (item && typeof item === 'object' && !Array.isArray(item)) {
+      return processNestedValue(item);
+    }
+    if (Array.isArray(item)) {
+      return processArrayItems(item);
+    }
+    // Check if item is a date string
+    if (typeof item === 'string' && isDateString(item)) {
+      try {
+        return Timestamp.fromDate(new Date(item));
+      } catch {
+        return item;
+      }
+    }
+    return item;
+  });
+};
+
+// Helper function to process nested objects and detect dates
+const processNestedValue = (value) => {
+  if (value === null || value === undefined) {
+    return value;
+  }
+  
+  if (Array.isArray(value)) {
+    return processArrayItems(value);
+  }
+  
+  if (typeof value === 'object') {
+    const processed = {};
+    for (const [key, val] of Object.entries(value)) {
+      processed[key] = processNestedValue(val);
+    }
+    return processed;
+  }
+  
+  // Check if value is a date string
+  if (typeof value === 'string' && isDateString(value)) {
+    try {
+      return Timestamp.fromDate(new Date(value));
+    } catch {
+      return value;
+    }
+  }
+  
+  return value;
+};
+
+// Helper function to detect if a string looks like a date
+const isDateString = (str) => {
+  if (typeof str !== 'string') return false;
+  
+  // Check for common date patterns
+  const datePatterns = [
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/, // ISO format
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/, // datetime-local format  
+    /^\d{4}-\d{2}-\d{2}$/ // date format
+  ];
+  
+  return datePatterns.some(pattern => pattern.test(str)) && !isNaN(Date.parse(str));
 };

@@ -337,6 +337,21 @@ const MigrationConsole = ({
                   Add Field
                 </button>
               </div>
+
+              {/* Enhanced Array Support Info */}
+              <div className="mb-3 p-3 bg-blue-900/20 border border-blue-700/30 rounded-md">
+                <div className="flex items-start space-x-2">
+                  <svg className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div>
+                    <p className="text-xs text-blue-300 font-medium">Enhanced Array & Object Support</p>
+                    <p className="text-xs text-blue-400 mt-1">
+                      Arrays now support objects, nested structures, and automatic date conversion. Use JSON format for complex arrays.
+                    </p>
+                  </div>
+                </div>
+              </div>
               
               {updateFields.length === 0 ? (
                 <div className="text-sm text-gray-500 text-center py-4 border border-dashed border-gray-600 rounded">
@@ -411,13 +426,20 @@ const MigrationConsole = ({
                             rows="2"
                             className="w-full text-xs bg-gray-800 border border-gray-600 rounded px-2 py-1 text-gray-200 focus:ring-1 focus:ring-orange-500 focus:border-orange-500 resize-none"
                           />
+                        ) : field.type === 'array' ? (
+                          <textarea
+                            value={field.value}
+                            onChange={(e) => updateField(index, 'value', e.target.value)}
+                            placeholder='Simple: value1, value2, value3 | Objects: [{"name":"John","age":30}, {"name":"Jane","age":25}]'
+                            rows="2"
+                            className="w-full text-xs bg-gray-800 border border-gray-600 rounded px-2 py-1 text-gray-200 focus:ring-1 focus:ring-orange-500 focus:border-orange-500 resize-none"
+                          />
                         ) : (
                           <input
                             type={field.type === 'number' ? 'number' : 'text'}
                             value={field.value}
                             onChange={(e) => updateField(index, 'value', e.target.value)}
                             placeholder={
-                              field.type === 'array' ? 'value1, value2, value3' : 
                               field.type === 'number' ? 'Enter number' :
                               'Enter value'
                             }
